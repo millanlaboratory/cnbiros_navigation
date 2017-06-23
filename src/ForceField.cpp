@@ -235,9 +235,7 @@ float ForceField::compute_velocity_linear(FusionGrid& grid, std::string layer,
 		distance = this->compute_distance(x, y);
 		angle    = this->compute_angle(x, y);
 	
-		if(distance < safezone) {
-			fobs += exp(-distance)*(1 - exp(-fabs(angle)));
-		}
+		fobs += exp(-(distance - safezone) )*(1 - exp(-fabs(angle)));
 	}
 
 	fobs *= 1.0f;
