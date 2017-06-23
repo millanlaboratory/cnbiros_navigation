@@ -9,6 +9,7 @@
 #include "cnbiros_core/Subscribers.hpp"
 #include "cnbiros_navigation/Flags.hpp"
 #include "cnbiros_navigation/FusionGrid.hpp"
+#include "cnbiros_navigation/ResetGridService.h"
 
 namespace cnbiros {
 	namespace navigation {
@@ -30,8 +31,10 @@ class SimpleFusion : public cnbiros::core::NodeInterface {
 		void on_received_point(const geometry_msgs::Point32::ConstPtr& msg, std::string topic);
 		void on_received_pointcloud2(const sensor_msgs::PointCloud2::ConstPtr& msg, std::string topic);
 		
+		virtual bool on_reset_service(cnbiros_navigation::ResetGridService::Request& req,
+									  cnbiros_navigation::ResetGridService::Response& res);
 		virtual void onRunning(void);
-		
+			
 
 	public:
 		static const unsigned int AsPointCloud  = 0;
@@ -42,6 +45,8 @@ class SimpleFusion : public cnbiros::core::NodeInterface {
 	private:
 		cnbiros::core::Subscribers* sources_;
 		ros::Publisher 				rospub_;
+		ros::ServiceServer 			rossrv_reset_;
+
 		FusionGrid* 				fusiongrid_;	
 };
 

@@ -12,16 +12,35 @@ SimpleFusion::SimpleFusion(ros::NodeHandle* node, std::string name) : cnbiros::c
 	this->rospub_ = node->advertise<grid_map_msgs::GridMap>
 						(node->getNamespace()+"/"+name, CNBIROS_CORE_BUFFER_MESSAGES);
 	
+	this->rossrv_reset_ = node->advertiseService(
+								  node->getNamespace()+"/"+name+"/reset", 
+								  &SimpleFusion::on_reset_service, this);
+	
 	this->fusiongrid_ = new FusionGrid(CNBIROS_NAVIGATION_FUSIONGRID_X,
 									   CNBIROS_NAVIGATION_FUSIONGRID_Y,
 									   CNBIROS_NAVIGATION_FUSIONGRID_R);
-	this->fusiongrid_->AddLayer(name);
+	this->fusiongrid_->AddLayer("fusion");
 	this->fusiongrid_->SetFrame("base_link");
 	this->fusiongrid_->Reset();
 }
 
 SimpleFusion::~SimpleFusion(void) {
 	delete this->sources_;
+}
+
+bool SimpleFusion::on_reset_service(cnbiros_navigation::ResetGridService::Request& req,
+									cnbiros_navigation::ResetGridService::Response& res) {
+
+	ROS_INFO("Requested to reset");
+	res.result = true;
+	if(this->fusiongrid_->Exists(req.layer)) {
+		this->fusiongrid_->Reset(req.layer);
+	} else {
+		res.result = false;
+	}
+
+	return res.result;
+
 }
 
 bool SimpleFusion::Remove(const std::string topic) {
@@ -90,9 +109,9 @@ void SimpleFusion::Process(void) {
 	grid_map_msgs::GridMap msg;
 
 	
-	this->fusiongrid_->Reset(this->GetName());
-	this->fusiongrid_->Sum(this->GetName());
-	this->fusiongrid_->SetMinMax(this->GetName(), -1.0f, 1.0f);
+	this->fusiongrid_->Reset("fusion");
+	this->fusiongrid_->Sum("fusion");
+	this->fusiongrid_->SetMax("fusion", 1.0f);
 	this->rospub_.publish(this->fusiongrid_->ToMessage());
 }
 
