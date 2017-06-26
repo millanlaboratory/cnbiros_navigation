@@ -24,6 +24,9 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	this->SetStrength(CNBIROS_FORCEFIELD_STRENGTH, ForceField::ForBoth);
 	this->SetDecay(CNBIROS_FORCEFIELD_DECAY, ForceField::ForBoth);
 	this->SetObstruction(CNBIROS_FORCEFIELD_OBSTRUCTION, ForceField::ForBoth);
+
+
+	this->velocity_ = CNBIROS_FORCEFIELD_VELOCITY_MAX;
 }
 
 ForceField::~ForceField(void) {}
@@ -245,16 +248,27 @@ float ForceField::compute_velocity_linear(FusionGrid& grid, std::string layer,
 
 		lambda = 1.0f;
 		a1 = 6.0f;
-		a2 = 0.7f;
+		a2 = 0.1f;
 		cforce = lambda*std::exp(-(std::pow(angle, 2)/a1 + std::pow(distance, 2)/a2));
 
 		cforce = std::max(cforce, pforce);
 		pforce = cforce;
 	}
 
-	ROS_INFO("force: %f", cforce);
-	velocity = maxvel*(1.0f-cforce);
+	float maxinc = 0.1;
+	float forceobs, forcesystem;
+	forcesystem = maxinc*std::cos(this->velocity_*M_PI/2.0f);
+	forceobs    = -cforce;
+	velocity =  this->velocity_ + 0.01f*(forcesystem + forceobs); 
+	if(velocity >= CNBIROS_FORCEFIELD_VELOCITY_MAX)
+		velocity = CNBIROS_FORCEFIELD_VELOCITY_MAX;
+	if(velocity <= 0.0f)
+		velocity = 0.01f;
+	
+	ROS_INFO("forceobs: %f", forceobs);
+	ROS_INFO("forcesystem: %f", forcesystem);
 	ROS_INFO("velocity: %f", velocity);
+	this->velocity_ = velocity;
 
 	return velocity;
 }

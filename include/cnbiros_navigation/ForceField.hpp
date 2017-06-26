@@ -67,6 +67,7 @@ class ForceField : public cnbiros::core::NodeInterface {
 		float 				repellors_strength_;
 		float 				repellors_decay_;
 		float 				repellors_obstruction_;
+		float 				velocity_;
 
 
 
