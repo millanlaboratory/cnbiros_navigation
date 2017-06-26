@@ -125,7 +125,7 @@ void ForceField::on_received_odometry(const nav_msgs::Odometry::ConstPtr& msg) {
 
 float ForceField::compute_angle(float x, float y) {
 	float angle;
-	angle = -(std::atan2(y, x) + M_PI/2.0f);
+	angle = -((std::atan2(y, x)) - M_PI/2.0f);
 
 	angle = fmod(angle + M_PI, 2 * M_PI);
 	return angle >=0 ? (angle-M_PI) : (angle + M_PI);
@@ -192,7 +192,7 @@ float ForceField::compute_velocity_angular(FusionGrid& grid, std::string layer,
 		//ROS_INFO("distance: %f", distance);
 		//ROS_INFO("lambda: %f", lambda);
 		//ROS_INFO("sigma: %f", sigma);
-		fobs  += lambda*(angle)*exp(-pow((angle),2)/(2.0f*pow(sigma, 2)));
+		fobs  += lambda*(-angle)*exp(-pow((angle),2)/(2.0f*pow(sigma, 2)));
 
 	}
 
@@ -207,13 +207,18 @@ float ForceField::compute_velocity_linear(FusionGrid& grid, std::string layer,
 	float fobs = 0.0f;
 	float velocity;
 	float distance;
-	
+	float pforce = 0.0f;
+	float cforce = 0.0f;
+	float a1, a2;
+	float lambda;
+
 	if(grid.Exists(layer) == false) {
 		ROS_ERROR("Target layer '%s' does not exist, cannot compute angular velocity", layer.c_str()); 
 		return 0.0f;
 	}
 	
 	grid_map::Matrix& data = grid[layer];	
+
 
 	for(grid_map::GridMapIterator it(grid); !it.isPastEnd(); ++it) {
 
@@ -234,13 +239,22 @@ float ForceField::compute_velocity_linear(FusionGrid& grid, std::string layer,
 		y =  cPosition.x();
 		distance = this->compute_distance(x, y);
 		angle    = this->compute_angle(x, y);
-	
-		fobs += exp(-(distance - safezone) )*(1 - exp(-fabs(angle)));
+
+		ROS_INFO("Angle: %f", angle);
+		ROS_INFO("Distance: %f", distance);
+
+		lambda = 1.0f;
+		a1 = 6.0f;
+		a2 = 0.7f;
+		cforce = lambda*std::exp(-(std::pow(angle, 2)/a1 + std::pow(distance, 2)/a2));
+
+		cforce = std::max(cforce, pforce);
+		pforce = cforce;
 	}
 
-	fobs *= 1.0f;
-	ROS_INFO("Obstruction: %f", fobs);
-	velocity = maxvel*exp(-fobs/decay);
+	ROS_INFO("force: %f", cforce);
+	velocity = maxvel*(1.0f-cforce);
+	ROS_INFO("velocity: %f", velocity);
 
 	return velocity;
 }
@@ -271,8 +285,8 @@ void ForceField::onRunning(void) {
 												   CNBIROS_FORCEFIELD_VELOCITY_DECAY);
 
 
-	ROS_INFO("Angular velocity: %f", force_angular);
-	ROS_INFO("Linear  velocity: %f", force_linear);
+	//ROS_INFO("Angular velocity: %f", force_angular);
+	//ROS_INFO("Linear  velocity: %f", force_linear);
 	msg.linear.x = force_linear;	
 	msg.linear.y = 0.0f;	
 	msg.linear.z = 0.0f;	
