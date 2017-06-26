@@ -187,7 +187,7 @@ float ForceField::compute_velocity_angular(FusionGrid& grid, std::string layer,
 		distance = this->compute_distance(x, y);
 		lambda   = this->compute_lambda(distance, value, decay);
 		sigma    = this->compute_sigma(distance, obstruction);
-		sigma = 1.0f;
+		//sigma = 1.0f;
 
 		//ROS_INFO("x: %f", x);
 		//ROS_INFO("y: %f", y);
@@ -248,7 +248,7 @@ float ForceField::compute_velocity_linear(FusionGrid& grid, std::string layer,
 
 		lambda = 1.0f;
 		a1 = 6.0f;
-		a2 = 0.1f;
+		a2 = 0.04f;
 		cforce = lambda*std::exp(-(std::pow(angle, 2)/a1 + std::pow(distance, 2)/a2));
 
 		cforce = std::max(cforce, pforce);
@@ -257,9 +257,9 @@ float ForceField::compute_velocity_linear(FusionGrid& grid, std::string layer,
 
 	float maxinc = 0.1;
 	float forceobs, forcesystem;
-	forcesystem = maxinc*std::cos(this->velocity_*M_PI/2.0f);
+	forcesystem = maxinc*std::cos(this->velocity_/maxvel*M_PI/2.0f);
 	forceobs    = -cforce;
-	velocity =  this->velocity_ + 0.01f*(forcesystem + forceobs); 
+	velocity =  this->velocity_ + 0.01f*(forcesystem + 1.1f*forceobs); 
 	if(velocity >= CNBIROS_FORCEFIELD_VELOCITY_MAX)
 		velocity = CNBIROS_FORCEFIELD_VELOCITY_MAX;
 	if(velocity <= 0.0f)
@@ -285,7 +285,7 @@ void ForceField::onRunning(void) {
 	force_angular += this->compute_velocity_angular(this->grid_attractors_,
 													this->attractors_layer_, 
 													this->attractors_decay_, 
-													this->attractors_obstruction_);
+													1.0f);
 
 	force_angular += this->compute_velocity_angular(this->grid_repellors_,
 													this->repellors_layer_, 
