@@ -271,7 +271,7 @@ void ForceField::onRunning(void) {
 	force_angular += this->compute_angular_velocity(this->r_grid_, 
 													this->r_layer_, this->r_beta1_, this->r_beta2_);
 
-	msg.linear.x = 0.5f;	
+	msg.linear.x = 0.1f;	
 	msg.linear.y = 0.0f;	
 	msg.linear.z = 0.0f;	
 	msg.angular.x = 0.0f;	
