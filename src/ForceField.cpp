@@ -28,7 +28,7 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	this->SetStrength(CNBIROS_FORCEFIELD_STRENGTH_REPELLORS, ForceField::ForRepellors);
 	this->SetDecay(CNBIROS_FORCEFIELD_DECAY_ATTRACTORS, ForceField::ForAttractors);
 	this->SetDecay(CNBIROS_FORCEFIELD_DECAY_REPELLORS, ForceField::ForRepellors);
-	this->SetRobotSize(0.4f);
+	this->SetRobotSize(CNBIROS_FORCEFIELD_ROBOT_SIZE, CNBIROS_FORCEFIELD_ROBOT_SECTOR);
 
 	//this->velocity_ = CNBIROS_FORCEFIELD_VELOCITY_MAX;
 }
@@ -103,8 +103,11 @@ void ForceField::SetDecay(float value, unsigned int type) {
 	}
 }
 
-void ForceField::SetRobotSize(float size) {
+void ForceField::SetRobotSize(float size, float sector) {
 	this->robot_size_ = size;
+	this->robot_sector_ = sector;
+	ROS_INFO("Set robot size to %f [m]", size);
+	ROS_INFO("Set robot sensor sector to %f [rad]", sector);
 }
 
 void ForceField::on_received_attractors(const grid_map_msgs::GridMap::ConstPtr& msg) {
@@ -137,11 +140,12 @@ float ForceField::compute_angular_velocity(grid_map::GridMap& grid, std::string 
 	float posx, posy, posv;
 	float theta, dist;
 	float lambda, sigma;
-	float robotsize;
+	float robotsize, robotsector;
 	float fobs;
 
 	fobs = 0.0f;
-	robotsize = this->robot_size_;
+	robotsize   = this->robot_size_;
+	robotsector = this->robot_sector_;
 
 	if(grid.exists(layer) == false) {
 		ROS_WARN_ONCE("Target layer '%s' does not exist, cannot compute angular velocity", layer.c_str()); 
@@ -173,7 +177,7 @@ float ForceField::compute_angular_velocity(grid_map::GridMap& grid, std::string 
 		theta    = TrigTools::Angle(posx, posy);
 		dist     = TrigTools::Radius(posx, posy);
 		lambda   = beta1*exp(-(dist/beta2));
-		sigma    = TrigTools::AngleNorm(std::atan(std::tan(M_PI/360.0f)+robotsize/(robotsize + dist)));
+		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + dist)));
 		
 		fobs += lambda*(M_PI/2.0f-theta)*exp(-pow(M_PI/2.0f-theta,2)/(2.0f*pow(sigma, 2)));
 	}
@@ -267,7 +271,7 @@ void ForceField::onRunning(void) {
 	force_angular += this->compute_angular_velocity(this->r_grid_, 
 													this->r_layer_, this->r_beta1_, this->r_beta2_);
 
-	msg.linear.x = 0.0f;	
+	msg.linear.x = 0.5f;	
 	msg.linear.y = 0.0f;	
 	msg.linear.z = 0.0f;	
 	msg.angular.x = 0.0f;	

@@ -26,7 +26,7 @@ class ForceField : public cnbiros::core::NodeInterface {
 		void SetTargetLayer(const std::string& layer, unsigned int type = ForceField::ForBoth);
 		void SetStrength(float value, unsigned int type);
 		void SetDecay(float value, unsigned int type);
-		void SetRobotSize(float size);
+		void SetRobotSize(float size, float sector);
 
 
 	protected:
@@ -73,6 +73,7 @@ class ForceField : public cnbiros::core::NodeInterface {
 		grid_map::GridMap	r_grid_;
 
 		float 				robot_size_;
+		float 				robot_sector_;
 
 		float 				angular_velocity_;
 		float 				linear_velocity_;
