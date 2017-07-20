@@ -14,6 +14,9 @@
 #include "cnbiros_navigation/SetStrengthSrv.h"
 #include "cnbiros_navigation/SetDecaySrv.h"
 
+#include <limits>
+#include <cmath>
+
 namespace cnbiros {
 	namespace navigation {
 
@@ -37,8 +40,10 @@ class ForceField : public cnbiros::core::NodeInterface {
 							 cnbiros_navigation::SetStrengthSrv::Response& res);
 		bool on_set_decay(cnbiros_navigation::SetDecaySrv::Request& req,
 						  cnbiros_navigation::SetDecaySrv::Response& res);
-		float compute_angular_velocity(grid_map::GridMap& grid, std::string layer,
-									   float beta1, float beta2);
+		void convert_grid_to_sector(grid_map::GridMap& grid, std::string layer,  
+										std::vector<float>& sectors);
+		float compute_angular_velocity(std::vector<float>& sectors, 
+											float beta1, float beta2);
 		//float compute_velocity_linear(fusion::FusionGrid& grid, std::string layer,  
 		//							  float maxvel, float safezone, float decay);
 
@@ -78,7 +83,12 @@ class ForceField : public cnbiros::core::NodeInterface {
 		float 				angular_velocity_;
 		float 				linear_velocity_;
 
-
+		//unsigned int		n_sects_;
+		//where are vectors actually initialized??
+		std::vector<float> 	r_sectors_; 
+		//(n_sects,std::numeric_limits<float>::infinity());
+		std::vector<float> 	a_sectors_; 
+		//(n_sects,std::numeric_limits<float>::infinity());
 
 
 

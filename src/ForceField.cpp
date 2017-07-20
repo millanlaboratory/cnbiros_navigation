@@ -30,6 +30,11 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	this->SetDecay(CNBIROS_FORCEFIELD_DECAY_REPELLORS, ForceField::ForRepellors);
 	this->SetRobotSize(CNBIROS_FORCEFIELD_ROBOT_SIZE, CNBIROS_FORCEFIELD_ROBOT_SECTOR);
 
+	unsigned int n_sectors = 7;
+	std::vector<float> r_sects (n_sectors,std::numeric_limits<float>::infinity());
+	std::vector<float> a_sects (n_sectors,std::numeric_limits<float>::infinity());
+	this->r_sectors_ = r_sects;
+	this->a_sectors_ = a_sects;
 	//this->velocity_ = CNBIROS_FORCEFIELD_VELOCITY_MAX;
 }
 
@@ -119,7 +124,7 @@ void ForceField::on_received_attractors(const grid_map_msgs::GridMap::ConstPtr& 
 	beta1 = this->a_beta1_;
 	beta2 = this->a_beta2_;
 	grid_map::GridMapRosConverter::fromMessage(*msg, this->a_grid_);
-
+	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
 }
 
 void ForceField::on_received_repellors(const grid_map_msgs::GridMap::ConstPtr& msg) {
@@ -130,30 +135,30 @@ void ForceField::on_received_repellors(const grid_map_msgs::GridMap::ConstPtr& m
 	beta1 = this->r_beta1_;
 	beta2 = this->r_beta2_;
 	grid_map::GridMapRosConverter::fromMessage(*msg, this->r_grid_);
+	this->convert_grid_to_sector(this->r_grid_, this->r_layer_, this->r_sectors_);
 
 }
 
-float ForceField::compute_angular_velocity(grid_map::GridMap& grid, std::string layer,  
-										   float beta1, float beta2) {
+void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string layer,  
+										   std::vector<float>& sectors) {
 	grid_map::Position 	cPosition;
 	grid_map::Index 	cIndex;
 	float posx, posy, posv;
 	float theta, dist;
-	float lambda, sigma;
-	float robotsize, robotsector;
-	float fobs;
+	unsigned int ind;
+	unsigned int n_sectors;
 
-	fobs = 0.0f;
-	robotsize   = this->robot_size_;
-	robotsector = this->robot_sector_;
+	n_sectors = sectors.size();
 
 	if(grid.exists(layer) == false) {
 		ROS_WARN_ONCE("Target layer '%s' does not exist, cannot compute angular velocity", layer.c_str()); 
-		return 0.0f;
+		return;
 	}
 	
 	grid_map::Matrix& data = grid[layer];	
 
+	sectors = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity()); 
+	printf("sectors: \n");
 	for(grid_map::GridMapIterator it(grid); !it.isPastEnd(); ++it) {
 
 		cIndex = grid_map::Index(*it);
@@ -176,13 +181,42 @@ float ForceField::compute_angular_velocity(grid_map::GridMap& grid, std::string 
 		// compute angular velocity based on attractors/repellors
 		theta    = TrigTools::Angle(posx, posy);
 		dist     = TrigTools::Radius(posx, posy);
+		// min ensures that ind !=n_sects (index would be out of range)
+		ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI+0.5f))), n_sectors);
+		sectors[ind] = std::min(sectors[ind],dist);
+		printf("%f", sectors[ind]);
+	}
+	printf("\n");
+}
+
+float ForceField::compute_angular_velocity(std::vector<float>& sectors, float beta1, float beta2)	 {
+	float fobs;
+	float dist;
+	float lambda;
+	float sigma;
+	float robotsize, robotsector;
+	float theta;
+	unsigned int ind;
+	
+	fobs = 0.0f;
+	robotsize   = this->robot_size_;
+	robotsector = this->robot_sector_;
+
+	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){		
+
+		if (!(std::isfinite(*it)))
+			continue;
+		
+		dist 	 = *it;
+		ind 	 = it-sectors.begin();
+		theta    = M_PI/sectors.size()*(ind-0.5f*(sectors.size()+1));
 		lambda   = beta1*exp(-(dist/beta2));
 		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + dist)));
 		
 		fobs += lambda*(M_PI/2.0f-theta)*exp(-pow(M_PI/2.0f-theta,2)/(2.0f*pow(sigma, 2)));
 	}
 
-	//printf("fobs: %f\n", fobs);
+	printf("fobs: %f\n", fobs);
 
 	return fobs;
 }
@@ -266,10 +300,11 @@ void ForceField::onRunning(void) {
 	float force_angular = 0.0f;
 	//float force_linear  = 0.0f;
 
-	force_angular -= this->compute_angular_velocity(this->a_grid_, 
-													this->a_layer_, this->a_beta1_, this->a_beta2_);
-	force_angular += this->compute_angular_velocity(this->r_grid_, 
-													this->r_layer_, this->r_beta1_, this->r_beta2_);
+	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
+	this->convert_grid_to_sector(this->r_grid_, this->r_layer_, this->r_sectors_);
+		
+	force_angular -= this->compute_angular_velocity(this->a_sectors_, this->a_beta1_, this->a_beta2_);
+	force_angular += this->compute_angular_velocity(this->r_sectors_, this->r_beta1_, this->r_beta2_);
 
 	msg.linear.x = 0.1f;	
 	msg.linear.y = 0.0f;	
