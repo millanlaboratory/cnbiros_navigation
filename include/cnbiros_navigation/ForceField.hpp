@@ -44,8 +44,8 @@ class ForceField : public cnbiros::core::NodeInterface {
 										std::vector<float>& sectors);
 		float compute_angular_velocity(std::vector<float>& sectors, 
 											float beta1, float beta2);
-		//float compute_velocity_linear(fusion::FusionGrid& grid, std::string layer,  
-		//							  float maxvel, float safezone, float decay);
+		float compute_velocity_linear(std::vector<float>& sectors, float maxvel, 
+								float safezone, float decay, float audacity);
 
 		virtual void onRunning(void);
 

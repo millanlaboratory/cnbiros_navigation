@@ -194,7 +194,7 @@ void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string lay
 
 float ForceField::compute_angular_velocity(std::vector<float>& sectors, float beta1, float beta2)	 {
 	float fobs;
-	float dist;
+	float distance;
 	float lambda;
 	float sigma;
 	float robotsize, robotsector;
@@ -210,12 +210,12 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 		if (!(std::isfinite(*it)))
 			continue;
 		
-		dist 	 = *it;
+		distance 	 = *it;
 		ind 	 = it-sectors.begin();
 		theta    = M_PI/sectors.size()*(ind+0.5f);
 		//theta    = M_PI/sectors.size()*(ind-0.5f*(sectors.size()-1));
-		lambda   = beta1*exp(-(dist/beta2));
-		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + dist)));
+		lambda   = beta1*exp(-(distance/beta2));
+		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + distance)));
 		
 		fobs += lambda*(M_PI/2.0f-theta)*exp(-pow(M_PI/2.0f-theta,2)/(2.0f*pow(sigma, 2)));
 		//fobs += lambda*(-theta)*exp(-pow(-theta,2)/(2.0f*pow(sigma, 2)));
@@ -226,6 +226,43 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 	return fobs;
 }
 
+
+float ForceField::compute_velocity_linear(std::vector<float>& sectors, float maxvel, 
+								float safezone, float decay, float audacity) {
+	float velocity;
+	float distance;
+	float lambda;
+	float x_distance_center;
+	float y_distance_front;
+	float robotsize;
+	float theta;
+	unsigned int ind;
+
+	robotsize = this->robot_size_+safezone;
+	velocity  = maxvel;
+
+	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){
+		distance = *it;
+		ind = it-sectors.begin();
+		theta = M_PI/sectors.size()*(ind+0.5f);
+		//x-projection of distance to center of robot
+		x_distance_center = std::sin(theta)*distance;
+		//y-projection of distance to front (+safezone) of robot
+		y_distance_front = std::cos(theta)*distance;
+		if(x_distance_center <= robotsize){
+			y_distance_front = std::max(
+							y_distance_front - std::sqrt(pow(robotsize,2)-pow(x_distance_center,2)), 0.01);
+		} else {
+			y_distance_front *= exp(audacity*pow((x_distance_center - robotsize),2));
+		}
+	
+		velocity *= exp(-decay/y_distance_front);
+	}
+	printf("velocity: %f\n", velocity);
+
+	return velocity;
+
+}
 /*
 float ForceField::compute_velocity_linear(fusion::FusionGrid& grid, std::string layer,  
 										   float maxvel, float safezone, float decay) {
@@ -299,10 +336,12 @@ float ForceField::compute_velocity_linear(fusion::FusionGrid& grid, std::string 
 }
 
 */
+
 void ForceField::onRunning(void) {
 
 	geometry_msgs::Twist msg;
 	float force_angular = 0.0f;
+	float velocity_linear = 0.1f;
 	//float force_linear  = 0.0f;
 
 	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
@@ -310,8 +349,10 @@ void ForceField::onRunning(void) {
 		
 	force_angular -= this->compute_angular_velocity(this->a_sectors_, this->a_beta1_, this->a_beta2_);
 	force_angular += this->compute_angular_velocity(this->r_sectors_, this->r_beta1_, this->r_beta2_);
-
-	msg.linear.x = 0.1f;	
+	velocity_linear = this->compute_velocity_linear(this->r_sectors_, CNBIROS_FORCEFIELD_VELOCITY_MAX, 
+												   CNBIROS_FORCEFIELD_VELOCITY_SAFEZONE,
+												   CNBIROS_FORCEFIELD_VELOCITY_DECAY, 2);
+	msg.linear.x = velocity_linear;	
 	msg.linear.y = 0.0f;	
 	msg.linear.z = 0.0f;	
 	msg.angular.x = 0.0f;	
