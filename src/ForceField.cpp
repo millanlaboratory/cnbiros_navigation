@@ -158,7 +158,7 @@ void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string lay
 	grid_map::Matrix& data = grid[layer];	
 
 	sectors = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity()); 
-	printf("sectors: \n");
+	//printf("sectors: \n");
 	for(grid_map::GridMapIterator it(grid); !it.isPastEnd(); ++it) {
 
 		cIndex = grid_map::Index(*it);
@@ -180,13 +180,16 @@ void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string lay
 		
 		// compute angular velocity based on attractors/repellors
 		theta    = TrigTools::Angle(posx, posy);
+		//printf("theta: %f\n", theta);
 		dist     = TrigTools::Radius(posx, posy);
 		// min ensures that ind !=n_sects (index would be out of range)
-		ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI+0.5f))), n_sectors);
-		sectors[ind] = std::min(sectors[ind],dist);
-		printf("%f", sectors[ind]);
+		ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI))), n_sectors);
+		//ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI+0.5f))), n_sectors);
+		//printf("ind: %u\n", ind);
+				sectors[ind] = std::min(sectors[ind],dist);
+		//printf("%f", sectors[ind]);
 	}
-	printf("\n");
+	//printf("\n");
 }
 
 float ForceField::compute_angular_velocity(std::vector<float>& sectors, float beta1, float beta2)	 {
@@ -209,11 +212,13 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 		
 		dist 	 = *it;
 		ind 	 = it-sectors.begin();
-		theta    = M_PI/sectors.size()*(ind-0.5f*(sectors.size()+1));
+		theta    = M_PI/sectors.size()*(ind+0.5f);
+		//theta    = M_PI/sectors.size()*(ind-0.5f*(sectors.size()-1));
 		lambda   = beta1*exp(-(dist/beta2));
 		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + dist)));
 		
 		fobs += lambda*(M_PI/2.0f-theta)*exp(-pow(M_PI/2.0f-theta,2)/(2.0f*pow(sigma, 2)));
+		//fobs += lambda*(-theta)*exp(-pow(-theta,2)/(2.0f*pow(sigma, 2)));
 	}
 
 	printf("fobs: %f\n", fobs);
