@@ -199,7 +199,7 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 	float sigma;
 	float robotsize, robotsector;
 	float theta;
-	unsigned int ind;
+	unsigned int index;
 	
 	fobs = 0.0f;
 	robotsize   = this->robot_size_;
@@ -211,9 +211,9 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 			continue;
 		
 		distance 	 = *it;
-		ind 	 = it-sectors.begin();
-		theta    = M_PI/sectors.size()*(ind+0.5f);
-		//theta    = M_PI/sectors.size()*(ind-0.5f*(sectors.size()-1));
+		index 	 = it-sectors.begin();
+		theta    = M_PI/sectors.size()*(index+0.5f);
+		//theta    = M_PI/sectors.size()*(index-0.5f*(sectors.size()-1));
 		lambda   = beta1*exp(-(distance/beta2));
 		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + distance)));
 		
@@ -236,29 +236,46 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	float y_distance_front;
 	float robotsize;
 	float theta;
-	unsigned int ind;
+	unsigned int index;
 
-	robotsize = this->robot_size_+safezone;
+	robotsize = 0.2; // this->robot_size_;
 	velocity  = maxvel;
 
 	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){
 		distance = *it;
-		ind = it-sectors.begin();
-		theta = M_PI/sectors.size()*(ind+0.5f);
+		//infinite distance -> no detected obstacle in sector, don't reduce velocity
+		//if(!(std::isfinite(distance))){
+		//	printf("inf dist: %f\n", distance);
+		//	continue;
+		//}
+		index = it-sectors.begin();
+		theta = M_PI/sectors.size()*(index+0.5f);
+		printf("sector %u: distance: %f\n", index, distance);
+		printf("sector %u: angle: %f\n", index, theta);
 		//x-projection of distance to center of robot
-		x_distance_center = std::sin(theta)*distance;
+		x_distance_center = std::abs(std::cos(theta)*distance);
+		printf("sector %u: x_distance: %f\n", index, x_distance_center);
 		//y-projection of distance to front (+safezone) of robot
-		y_distance_front = std::cos(theta)*distance;
+		y_distance_front = std::sin(theta)*distance;
+		printf("sector %u: y_distance0: %f\n", index, y_distance_front);
 		if(x_distance_center <= robotsize){
 			y_distance_front = std::max(
 							y_distance_front - std::sqrt(pow(robotsize,2)-pow(x_distance_center,2)), 0.01);
 		} else {
 			y_distance_front *= exp(audacity*pow((x_distance_center - robotsize),2));
 		}
-		printf("sector: %u, y_distance: %f\n", ind, velocity);
-		velocity *= exp(-decay/y_distance_front);
+		printf("sector %u: y_distance_front: %f\n", index, y_distance_front);
+		printf("sector %u: factor: %f\n", index, exp(-0.1*decay/y_distance_front));
+		velocity *= exp(-0.1*decay/y_distance_front);
+
 	}
 	printf("velocity: %f\n", velocity);
+	printf("max velocity: %f\n", maxvel);
+	printf("robotsize: %f\n", robotsize);
+	printf("safezone: %f\n", safezone);
+	printf("decay: %f\n", decay);
+
+	velocity = std::max(0.01f, std::min(maxvel, velocity));
 
 	return velocity;
 
