@@ -255,7 +255,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 		} else {
 			y_distance_front *= exp(audacity*pow((x_distance_center - robotsize),2));
 		}
-	
+		printf("sector: %u, y_distance: %f\n", ind, velocity);
 		velocity *= exp(-decay/y_distance_front);
 	}
 	printf("velocity: %f\n", velocity);
