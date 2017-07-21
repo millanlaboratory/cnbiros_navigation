@@ -238,6 +238,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	float theta;
 	unsigned int index;
 
+	audacity = 10
 	robotsize = 0.2; // this->robot_size_;
 	velocity  = maxvel;
 
