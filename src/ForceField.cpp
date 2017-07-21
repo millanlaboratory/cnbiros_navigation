@@ -241,6 +241,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	audacity = 10;
 	robotsize = 0.2; // this->robot_size_;
 	velocity  = maxvel;
+	decay = 0.05;
 
 	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){
 		distance = *it;
@@ -252,29 +253,29 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 		index = it-sectors.begin();
 		theta = M_PI/sectors.size()*(index+0.5f);
 		printf("sector %u: distance: %f\n", index, distance);
-		printf("sector %u: angle: %f\n", index, theta);
+		//printf("sector %u: angle: %f\n", index, theta);
 		//x-projection of distance to center of robot
 		x_distance_center = std::abs(std::cos(theta)*distance);
-		printf("sector %u: x_distance: %f\n", index, x_distance_center);
+		//printf("sector %u: x_distance: %f\n", index, x_distance_center);
 		//y-projection of distance to front (+safezone) of robot
 		y_distance_front = std::sin(theta)*distance;
-		printf("sector %u: y_distance0: %f\n", index, y_distance_front);
+		//printf("sector %u: y_distance0: %f\n", index, y_distance_front);
 		if(x_distance_center <= robotsize){
 			y_distance_front = std::max(
 							y_distance_front - std::sqrt(pow(robotsize,2)-pow(x_distance_center,2)), 0.01);
 		} else {
-			y_distance_front *= exp(audacity*pow((x_distance_center - robotsize),2));
+			y_distance_front *= exp(audacity/robotsize*pow((x_distance_center - robotsize),2));
 		}
 		printf("sector %u: y_distance_front: %f\n", index, y_distance_front);
-		printf("sector %u: factor: %f\n", index, exp(-0.1*decay/y_distance_front));
-		velocity *= exp(-0.1*decay/y_distance_front);
+		printf("sector %u: factor: %f\n", index, exp(-decay/y_distance_front));
+		velocity *= exp(-decay/y_distance_front);
 
 	}
-	printf("velocity: %f\n", velocity);
-	printf("max velocity: %f\n", maxvel);
-	printf("robotsize: %f\n", robotsize);
-	printf("safezone: %f\n", safezone);
-	printf("decay: %f\n", decay);
+	//printf("velocity: %f\n", velocity);
+	//printf("max velocity: %f\n", maxvel);
+	//printf("robotsize: %f\n", robotsize);
+	//printf("safezone: %f\n", safezone);
+	//printf("decay: %f\n", decay);
 
 	velocity = std::max(0.01f, std::min(maxvel, velocity));
 
