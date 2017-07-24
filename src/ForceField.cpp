@@ -239,7 +239,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	float theta;
 	unsigned int index;
 
-	robotradius = 0.5*this->robot_size_;
+	robotradius = 0.5f*this->robot_size_;
 	
 	velocity  = maxvel;
 	
@@ -262,9 +262,12 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 		//printf("sector %u: y_distance0: %f\n", index, y_distance_front);
 		if(x_distance_center <= robotradius){
 			y_distance_front = std::max(
-							y_distance_front - std::sqrt(pow(robotradius,2)-pow(x_distance_center,2)), 0.01);
-		} else {
-			y_distance_front *= exp(audacity/robotradius*pow((x_distance_center - robotradius),2));
+							y_distance_front - std::sqrt(std::pow(robotradius,2.0f)-std::pow(x_distance_center,2.0f)), 0.01f);
+		}
+		else {
+			y_distance_front = std::max(
+							y_distance_front*std::exp(audacity/robotradius*std::pow((x_distance_center - robotradius),2.0f)),
+							y_distance_front+std::sqrt(audacity)*(x_distance_center-robotradius));
 		}
 		printf("sector %u: y_distance_front: %f\n", index, y_distance_front);
 		printf("sector %u: factor: %f\n", index, exp(-decay/y_distance_front));
