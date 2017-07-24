@@ -239,7 +239,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	float theta;
 	unsigned int index;
 
-	robotradius = 0.5f*this->robot_size_;
+	robotradius = 0.5f*this->robot_size_+safezone;
 	
 	velocity  = maxvel;
 	
