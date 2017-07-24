@@ -30,11 +30,11 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	this->SetDecay(CNBIROS_FORCEFIELD_DECAY_REPELLORS, ForceField::ForRepellors);
 	this->SetRobotSize(CNBIROS_FORCEFIELD_ROBOT_SIZE, CNBIROS_FORCEFIELD_ROBOT_SECTOR);
 
-	unsigned int n_sectors = 7;
-	std::vector<float> r_sects (n_sectors,std::numeric_limits<float>::infinity());
-	std::vector<float> a_sects (n_sectors,std::numeric_limits<float>::infinity());
-	this->r_sectors_ = r_sects;
-	this->a_sectors_ = a_sects;
+	unsigned int n_sectors = CNBIROS_FORCEFIELD_NUMBER_SECTORS;
+	//std::vector<float> r_sects (n_sectors,std::numeric_limits<float>::infinity());
+	//std::vector<float> a_sects (n_sectors,std::numeric_limits<float>::infinity());
+	this->r_sectors_ = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity());
+	this->a_sectors_ = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity());
 	//this->velocity_ = CNBIROS_FORCEFIELD_VELOCITY_MAX;
 }
 
@@ -229,20 +229,20 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 
 float ForceField::compute_velocity_linear(std::vector<float>& sectors, float maxvel, 
 								float safezone, float decay, float audacity) {
+	//do not necessarily need safezone - not used at the moment
 	float velocity;
 	float distance;
 	float lambda;
 	float x_distance_center;
 	float y_distance_front;
-	float robotsize;
+	float robotradius;
 	float theta;
 	unsigned int index;
 
-	audacity = 10;
-	robotsize = 0.25; // this->robot_size_;
+	robotradius = 0.5*this->robot_size_;
+	
 	velocity  = maxvel;
-	decay = 0.05;
-
+	
 	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){
 		distance = *it;
 		//infinite distance -> no detected obstacle in sector, don't reduce velocity
@@ -260,24 +260,24 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 		//y-projection of distance to front (+safezone) of robot
 		y_distance_front = std::sin(theta)*distance;
 		//printf("sector %u: y_distance0: %f\n", index, y_distance_front);
-		if(x_distance_center <= robotsize){
+		if(x_distance_center <= robotradius){
 			y_distance_front = std::max(
-							y_distance_front - std::sqrt(pow(robotsize,2)-pow(x_distance_center,2)), 0.01);
+							y_distance_front - std::sqrt(pow(robotradius,2)-pow(x_distance_center,2)), 0.01);
 		} else {
-			y_distance_front *= exp(audacity/robotsize*pow((x_distance_center - robotsize),2));
+			y_distance_front *= exp(audacity/robotradius*pow((x_distance_center - robotradius),2));
 		}
 		printf("sector %u: y_distance_front: %f\n", index, y_distance_front);
 		printf("sector %u: factor: %f\n", index, exp(-decay/y_distance_front));
 		velocity *= exp(-decay/y_distance_front);
-
 	}
-	//printf("velocity: %f\n", velocity);
+
+	velocity = std::max(0.01f, std::min(maxvel, velocity));
+
+	printf("velocity: %f\n", velocity);
 	//printf("max velocity: %f\n", maxvel);
 	//printf("robotsize: %f\n", robotsize);
 	//printf("safezone: %f\n", safezone);
 	//printf("decay: %f\n", decay);
-
-	velocity = std::max(0.01f, std::min(maxvel, velocity));
 
 	return velocity;
 
@@ -361,16 +361,16 @@ void ForceField::onRunning(void) {
 	geometry_msgs::Twist msg;
 	float force_angular = 0.0f;
 	float velocity_linear = 0.1f;
-	//float force_linear  = 0.0f;
-
+	
 	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
 	this->convert_grid_to_sector(this->r_grid_, this->r_layer_, this->r_sectors_);
 		
 	force_angular -= this->compute_angular_velocity(this->a_sectors_, this->a_beta1_, this->a_beta2_);
 	force_angular += this->compute_angular_velocity(this->r_sectors_, this->r_beta1_, this->r_beta2_);
 	velocity_linear = this->compute_velocity_linear(this->r_sectors_, CNBIROS_FORCEFIELD_VELOCITY_MAX, 
-												   CNBIROS_FORCEFIELD_VELOCITY_SAFEZONE,
-												   CNBIROS_FORCEFIELD_VELOCITY_DECAY, 2);
+													   CNBIROS_FORCEFIELD_VELOCITY_SAFEZONE, CNBIROS_FORCEFIELD_VELOCITY_DECAY,
+													   CNBIROS_FORCEFIELD_VELOCITY_AUDACITY);
+	//should device accelerate in presence of attractors?
 	msg.linear.x = velocity_linear;	
 	msg.linear.y = 0.0f;	
 	msg.linear.z = 0.0f;	
