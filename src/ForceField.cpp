@@ -246,10 +246,10 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){
 		distance = *it;
 		//infinite distance -> no detected obstacle in sector, don't reduce velocity
-		//if(!(std::isfinite(distance))){
+		if(!(std::isfinite(distance))){
 		//	printf("inf dist: %f\n", distance);
-		//	continue;
-		//}
+			continue;
+		}
 		index = it-sectors.begin();
 		theta = M_PI/sectors.size()*(index+0.5f);
 		printf("sector %u: distance: %f\n", index, distance);
