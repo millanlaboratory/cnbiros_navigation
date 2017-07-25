@@ -210,7 +210,7 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 		if (!(std::isfinite(*it)))
 			continue;
 		
-		distance 	 = *it;
+		distance = *it;
 		index 	 = it-sectors.begin();
 		theta    = M_PI/sectors.size()*(index+0.5f);
 		//theta    = M_PI/sectors.size()*(index-0.5f*(sectors.size()-1));
@@ -265,9 +265,10 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 							y_distance_front - std::sqrt(std::pow(robotradius,2.0f)-std::pow(x_distance_center,2.0f)), 0.01f);
 		}
 		else {
-			y_distance_front = std::max(
-							y_distance_front*std::exp(audacity/robotradius*std::pow((x_distance_center - robotradius),2.0f)),
-							y_distance_front+std::sqrt(audacity)*(x_distance_center-robotradius));
+			//y_distance_front = std::max(
+			//				y_distance_front*std::exp(audacity/robotradius*std::pow((x_distance_center - robotradius),2.0f)),
+			//				y_distance_front+std::sqrt(audacity)*(x_distance_center-robotradius));
+			y_distance_front = y_distance_front+std::exp(audacity/robotradius*std::pow((x_distance_center - robotradius),2.0f))-1.0f;
 		}
 		printf("sector %u: y_distance_front: %f\n", index, y_distance_front);
 		printf("sector %u: factor: %f\n", index, exp(-decay/y_distance_front));
