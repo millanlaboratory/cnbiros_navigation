@@ -11,7 +11,7 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	rossub_attractors_ = node->subscribe("attractors", CNBIROS_CORE_BUFFER_MESSAGES, 
 			  							 &ForceField::on_received_attractors, this);
 	
-	rossub_repellors_  = node->subscribe("repellors",  CNBIROS_CORE_BUFFER_MESSAGES, 
+	rossub_repellors_  = node->subscribe("repellors", CNBIROS_CORE_BUFFER_MESSAGES, 
 			  							 &ForceField::on_received_repellors, this);
 
 	rospub_cmdvel_ 	  = node->advertise<geometry_msgs::Twist>("cmd_vel", CNBIROS_CORE_BUFFER_MESSAGES);
@@ -116,6 +116,7 @@ void ForceField::SetRobotSize(float size, float sector) {
 }
 
 void ForceField::on_received_attractors(const grid_map_msgs::GridMap::ConstPtr& msg) {
+	//printf("received attractors");
 	
 	float beta1, beta2;
 	std::string layer;
@@ -128,6 +129,8 @@ void ForceField::on_received_attractors(const grid_map_msgs::GridMap::ConstPtr& 
 }
 
 void ForceField::on_received_repellors(const grid_map_msgs::GridMap::ConstPtr& msg) {
+	//printf("received repellors");
+	
 	float beta1, beta2;
 	std::string layer;
 
@@ -138,6 +141,8 @@ void ForceField::on_received_repellors(const grid_map_msgs::GridMap::ConstPtr& m
 	this->convert_grid_to_sector(this->r_grid_, this->r_layer_, this->r_sectors_);
 
 }
+
+
 
 void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string layer,  
 										   std::vector<float>& sectors) {
@@ -221,7 +226,7 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 		//fobs += lambda*(-theta)*exp(-pow(-theta,2)/(2.0f*pow(sigma, 2)));
 	}
 
-	printf("fobs: %f\n", fobs);
+	//printf("fobs: %f\n", fobs);
 
 	return fobs;
 }
@@ -252,7 +257,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 		}
 		index = it-sectors.begin();
 		theta = M_PI/sectors.size()*(index+0.5f);
-		printf("sector %u: distance: %f\n", index, distance);
+		//printf("sector %u: distance: %f\n", index, distance);
 		//printf("sector %u: angle: %f\n", index, theta);
 		//x-projection of distance to center of robot
 		x_distance_center = std::abs(std::cos(theta)*distance);
@@ -277,7 +282,7 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 
 	//velocity = std::max(0.01f, std::min(maxvel, velocity));
 
-	printf("velocity: %f\n", velocity);
+	//printf("velocity: %f\n", velocity);
 	//printf("max velocity: %f\n", maxvel);
 	//printf("robotsize: %f\n", robotsize);
 	//printf("safezone: %f\n", safezone);
@@ -364,8 +369,9 @@ void ForceField::onRunning(void) {
 
 	geometry_msgs::Twist msg;
 	float force_angular = 0.0f;
-	float velocity_linear = 0.1f;
+	float velocity_linear = 0.0f;
 	
+
 	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
 	this->convert_grid_to_sector(this->r_grid_, this->r_layer_, this->r_sectors_);
 		
@@ -374,7 +380,8 @@ void ForceField::onRunning(void) {
 	velocity_linear = this->compute_velocity_linear(this->r_sectors_, CNBIROS_FORCEFIELD_VELOCITY_MAX, 
 													   CNBIROS_FORCEFIELD_VELOCITY_SAFEZONE, CNBIROS_FORCEFIELD_VELOCITY_DECAY,
 													   CNBIROS_FORCEFIELD_VELOCITY_AUDACITY);
-	//should device accelerate in presence of attractors?
+
+
 	msg.linear.x = velocity_linear;	
 	msg.linear.y = 0.0f;	
 	msg.linear.z = 0.0f;	

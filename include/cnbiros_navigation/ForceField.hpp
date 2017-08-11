@@ -35,7 +35,7 @@ class ForceField : public cnbiros::core::NodeInterface {
 	protected:
 		void on_received_attractors(const grid_map_msgs::GridMap::ConstPtr& msg);
 		void on_received_repellors(const grid_map_msgs::GridMap::ConstPtr& msg);
-		
+
 		bool on_set_strength(cnbiros_navigation::SetStrengthSrv::Request& req,
 							 cnbiros_navigation::SetStrengthSrv::Response& res);
 		bool on_set_decay(cnbiros_navigation::SetDecaySrv::Request& req,
