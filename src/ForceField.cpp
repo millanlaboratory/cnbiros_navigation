@@ -36,6 +36,8 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	this->r_sectors_ = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity());
 	this->a_sectors_ = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity());
 	//this->velocity_ = CNBIROS_FORCEFIELD_VELOCITY_MAX;
+
+	this->Stop();
 }
 
 ForceField::~ForceField(void) {}
