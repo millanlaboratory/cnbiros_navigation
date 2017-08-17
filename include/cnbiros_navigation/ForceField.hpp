@@ -48,6 +48,9 @@ class ForceField : public cnbiros::core::NodeInterface {
 								float safezone, float decay, float audacity);
 
 		virtual void onRunning(void);
+		virtual void onStraight(void);
+		virtual void onLeft(void);
+		virtual void onRight(void);
 
 	
 		//float compute_angle(float x, float y);

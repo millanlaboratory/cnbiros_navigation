@@ -367,6 +367,49 @@ float ForceField::compute_velocity_linear(fusion::FusionGrid& grid, std::string 
 
 */
 
+void ForceField::onStraight(void) {
+
+	geometry_msgs::Twist msg;
+	
+	msg.linear.x = CNBIROS_FORCEFIELD_VELOCITY_MAX;	
+	msg.linear.y = 0.0f;	
+	msg.linear.z = 0.0f;	
+	msg.angular.x = 0.0f;	
+	msg.angular.y = 0.0f;	
+	msg.angular.z = 0.0f;	
+	
+	this->rospub_cmdvel_.publish(msg);
+}
+
+void ForceField::onLeft(void) {
+
+	geometry_msgs::Twist msg;
+	
+	msg.linear.x = 0.0f;	
+	msg.linear.y = 0.0f;	
+	msg.linear.z = 0.0f;	
+	msg.angular.x = 0.0f;	
+	msg.angular.y = 0.0f;	
+	msg.angular.z = 1.0f;	
+	
+	this->rospub_cmdvel_.publish(msg);
+}
+
+void ForceField::onRight(void) {
+
+	geometry_msgs::Twist msg;
+
+	msg.linear.x = 0.0f;	
+	msg.linear.y = 0.0f;	
+	msg.linear.z = 0.0f;	
+	msg.angular.x = 0.0f;	
+	msg.angular.y = 0.0f;	
+	msg.angular.z = -1.0f;	
+	
+	this->rospub_cmdvel_.publish(msg);
+}
+
+
 void ForceField::onRunning(void) {
 
 	geometry_msgs::Twist msg;
