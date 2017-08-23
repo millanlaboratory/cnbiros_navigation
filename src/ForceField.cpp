@@ -31,11 +31,8 @@ ForceField::ForceField(ros::NodeHandle* node, std::string name) : NodeInterface(
 	this->SetRobotSize(CNBIROS_FORCEFIELD_ROBOT_SIZE, CNBIROS_FORCEFIELD_ROBOT_SECTOR);
 
 	unsigned int n_sectors = CNBIROS_FORCEFIELD_NUMBER_SECTORS;
-	//std::vector<float> r_sects (n_sectors,std::numeric_limits<float>::infinity());
-	//std::vector<float> a_sects (n_sectors,std::numeric_limits<float>::infinity());
 	this->r_sectors_ = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity());
 	this->a_sectors_ = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity());
-	//this->velocity_ = CNBIROS_FORCEFIELD_VELOCITY_MAX;
 
 	this->Stop();
 }
@@ -128,6 +125,7 @@ void ForceField::on_received_attractors(const grid_map_msgs::GridMap::ConstPtr& 
 	beta2 = this->a_beta2_;
 	grid_map::GridMapRosConverter::fromMessage(*msg, this->a_grid_);
 	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
+
 }
 
 void ForceField::on_received_repellors(const grid_map_msgs::GridMap::ConstPtr& msg) {
@@ -165,7 +163,7 @@ void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string lay
 	grid_map::Matrix& data = grid[layer];	
 
 	sectors = std::vector<float> (n_sectors,std::numeric_limits<float>::infinity()); 
-	//printf("sectors: \n");
+
 	for(grid_map::GridMapIterator it(grid); !it.isPastEnd(); ++it) {
 
 		cIndex = grid_map::Index(*it);
@@ -175,7 +173,6 @@ void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string lay
 
 		// get current position
 		grid.getPosition(cIndex, cPosition);
-
 		// exclude the positions on the back
 		if(cPosition.x() < -0.1f)
 			continue;
@@ -183,23 +180,20 @@ void ForceField::convert_grid_to_sector(grid_map::GridMap& grid, std::string lay
 		// get x and y cohordinates (reverse for standard usage)
 		posx = -cPosition.y();
 		posy =  cPosition.x();
+
 		posv = data(cIndex(0), cIndex(1));
 		
 		// compute angular velocity based on attractors/repellors
 		theta    = TrigTools::Angle(posx, posy);
-		//printf("theta: %f\n", theta);
 		dist     = TrigTools::Radius(posx, posy);
-		// min ensures that ind !=n_sects (index would be out of range)
-		ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI))), n_sectors);
-		//ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI+0.5f))), n_sectors);
-		//printf("ind: %u\n", ind);
-				sectors[ind] = std::min(sectors[ind],dist);
-		//printf("%f", sectors[ind]);
+		// min ensures that ind < n_sectors (index would be out of range for theta==M_PI)
+		ind   	 = std::min((unsigned int)(std::floor(n_sectors*(theta/M_PI))), n_sectors-1);
+		sectors[ind] = std::min(sectors[ind],dist);
 	}
-	//printf("\n");
+
 }
 
-float ForceField::compute_angular_velocity(std::vector<float>& sectors, float beta1, float beta2)	 {
+float ForceField::compute_angular_velocity_repellors(std::vector<float>& sectors, float beta1, float beta2)	 {
 	float fobs;
 	float distance;
 	float lambda;
@@ -220,21 +214,46 @@ float ForceField::compute_angular_velocity(std::vector<float>& sectors, float be
 		distance = *it;
 		index 	 = it-sectors.begin();
 		theta    = M_PI/sectors.size()*(index+0.5f);
-		//theta    = M_PI/sectors.size()*(index-0.5f*(sectors.size()-1));
 		lambda   = beta1*exp(-(distance/beta2));
 		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + distance)));
-		
 		fobs += lambda*(M_PI/2.0f-theta)*exp(-pow(M_PI/2.0f-theta,2)/(2.0f*pow(sigma, 2)));
-		//fobs += lambda*(-theta)*exp(-pow(-theta,2)/(2.0f*pow(sigma, 2)));
 	}
 
-	//printf("fobs: %f\n", fobs);
+	return fobs;
+}
+
+float ForceField::compute_angular_velocity_attractors(std::vector<float>& sectors, float beta1, float beta2)	 {
+	float fobs;
+	float distance;
+	float lambda;
+	float sigma;
+	float robotsize, robotsector;
+	float theta;
+	unsigned int index;
+	
+	fobs = 0.0f;
+	robotsize   = this->robot_size_;
+	robotsector = this->robot_sector_;
+
+	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){		
+
+		if (!(std::isfinite(*it)))
+			continue;
+		
+		distance = *it;
+		index 	 = it-sectors.begin();
+		theta    = M_PI/sectors.size()*(index+0.5f);
+		lambda   = beta1*exp(-(distance/beta2));
+		sigma    = TrigTools::AngleNorm(std::atan(std::tan(robotsector/2.0f)+robotsize/(robotsize + distance)));
+		fobs += lambda*(M_PI/2.0f-theta);
+	}
 
 	return fobs;
 }
 
 
-float ForceField::compute_velocity_linear(std::vector<float>& sectors, float maxvel, 
+
+float ForceField::compute_linear_velocity(std::vector<float>& sectors, float maxvel, 
 								float safezone, float decay, float audacity) {
 	//do not necessarily need safezone - not used at the moment
 	float velocity;
@@ -252,21 +271,20 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 	
 	for(std::vector<float>::iterator it = sectors.begin(); it != sectors.end(); ++it){
 		distance = *it;
+		
 		//infinite distance -> no detected obstacle in sector, don't reduce velocity
-		if(!(std::isfinite(distance))){
-		//	printf("inf dist: %f\n", distance);
+		if(!(std::isfinite(distance)))
 			continue;
-		}
+		
 		index = it-sectors.begin();
 		theta = M_PI/sectors.size()*(index+0.5f);
-		//printf("sector %u: distance: %f\n", index, distance);
-		//printf("sector %u: angle: %f\n", index, theta);
+		
 		//x-projection of distance to center of robot
 		x_distance_center = std::abs(std::cos(theta)*distance);
-		//printf("sector %u: x_distance: %f\n", index, x_distance_center);
+		
 		//y-projection of distance to front (+safezone) of robot
 		y_distance_front = std::sin(theta)*distance;
-		//printf("sector %u: y_distance0: %f\n", index, y_distance_front);
+		
 		if(x_distance_center <= robotradius){
 			y_distance_front = std::max(
 							y_distance_front - std::sqrt(std::pow(robotradius,2.0f)-std::pow(x_distance_center,2.0f)), 0.01f);
@@ -277,24 +295,17 @@ float ForceField::compute_velocity_linear(std::vector<float>& sectors, float max
 			//				y_distance_front+std::sqrt(audacity)*(x_distance_center-robotradius));
 			y_distance_front = y_distance_front+std::exp(audacity/robotradius*std::pow((x_distance_center - robotradius),2.0f))-1.0f;
 		}
-		//printf("sector %u: y_distance_front: %f\n", index, y_distance_front);
-		//printf("sector %u: factor: %f\n", index, exp(-decay/y_distance_front));
 		velocity = std::min(velocity, maxvel*std::exp(-decay/y_distance_front));
 	}
 
 	//velocity = std::max(0.01f, std::min(maxvel, velocity));
 
-	//printf("velocity: %f\n", velocity);
-	//printf("max velocity: %f\n", maxvel);
-	//printf("robotsize: %f\n", robotsize);
-	//printf("safezone: %f\n", safezone);
-	//printf("decay: %f\n", decay);
 
 	return velocity;
 
 }
 /*
-float ForceField::compute_velocity_linear(fusion::FusionGrid& grid, std::string layer,  
+float ForceField::compute_linear_velocity(fusion::FusionGrid& grid, std::string layer,  
 										   float maxvel, float safezone, float decay) {
 	grid_map::Position 	cPosition;
 	grid_map::Index 	cIndex;
@@ -420,9 +431,9 @@ void ForceField::onRunning(void) {
 	this->convert_grid_to_sector(this->a_grid_, this->a_layer_, this->a_sectors_);
 	this->convert_grid_to_sector(this->r_grid_, this->r_layer_, this->r_sectors_);
 		
-	force_angular -= this->compute_angular_velocity(this->a_sectors_, this->a_beta1_, this->a_beta2_);
-	force_angular += this->compute_angular_velocity(this->r_sectors_, this->r_beta1_, this->r_beta2_);
-	velocity_linear = this->compute_velocity_linear(this->r_sectors_, CNBIROS_FORCEFIELD_VELOCITY_MAX, 
+	force_angular -= this->compute_angular_velocity_attractors(this->a_sectors_, this->a_beta1_, this->a_beta2_);
+	force_angular += this->compute_angular_velocity_attractors(this->r_sectors_, this->r_beta1_, this->r_beta2_);
+	velocity_linear = this->compute_linear_velocity(this->r_sectors_, CNBIROS_FORCEFIELD_VELOCITY_MAX, 
 													   CNBIROS_FORCEFIELD_VELOCITY_SAFEZONE, CNBIROS_FORCEFIELD_VELOCITY_DECAY,
 													   CNBIROS_FORCEFIELD_VELOCITY_AUDACITY);
 
@@ -445,7 +456,7 @@ void ForceField::onRunning(void) {
 	//												this->rdecay_, 
 	//												this->robstruction_);
 	//
-	//force_linear  += this->compute_velocity_linear(*(this->rgrid_),
+	//force_linear  += this->compute_linear_velocity(*(this->rgrid_),
 	//											   this->rlayer_, 
 	//											   CNBIROS_FORCEFIELD_VELOCITY_MAX, 
 	//											   CNBIROS_FORCEFIELD_VELOCITY_SAFEZONE,

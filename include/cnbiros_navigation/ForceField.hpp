@@ -42,9 +42,11 @@ class ForceField : public cnbiros::core::NodeInterface {
 						  cnbiros_navigation::SetDecaySrv::Response& res);
 		void convert_grid_to_sector(grid_map::GridMap& grid, std::string layer,  
 										std::vector<float>& sectors);
-		float compute_angular_velocity(std::vector<float>& sectors, 
+		float compute_angular_velocity_attractors(std::vector<float>& sectors, 
 											float beta1, float beta2);
-		float compute_velocity_linear(std::vector<float>& sectors, float maxvel, 
+		float compute_angular_velocity_repellors(std::vector<float>& sectors, 
+											float beta1, float beta2);
+		float compute_linear_velocity(std::vector<float>& sectors, float maxvel, 
 								float safezone, float decay, float audacity);
 
 		virtual void onRunning(void);
