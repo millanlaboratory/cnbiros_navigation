@@ -37,5 +37,6 @@ catkin_package(
 add_library(cnbiros_navigation 
 			src/TrigTools.cpp
 			src/ForceField.cpp)
+add_dependencies(cnbiros_navigation cnbiros_navigation_generate_messages_cpp)
 target_link_libraries(cnbiros_navigation ${catkin_LIBRARIES})
 
