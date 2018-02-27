@@ -265,7 +265,7 @@ float ForceField::compute_linear_velocity(std::vector<float>& sectors, float max
 	float theta;
 	unsigned int index;
 
-	robotradius = 0.5f*this->robot_size_+safezone;
+	robotradius = 0.3f*this->robot_size_+safezone;
 	
 	velocity  = maxvel;
 	
@@ -280,10 +280,10 @@ float ForceField::compute_linear_velocity(std::vector<float>& sectors, float max
 		theta = M_PI/sectors.size()*(index+0.5f);
 		
 		//x-projection of distance to center of robot
-		x_distance_center = std::abs(std::cos(theta)*distance);
+		x_distance_center = std::abs(std::cos(theta)*(distance));
 		
 		//y-projection of distance to front (+safezone) of robot
-		y_distance_front = std::sin(theta)*distance;
+		y_distance_front = std::sin(theta)*(distance);
 		
 		if(x_distance_center <= robotradius){
 			y_distance_front = std::max(
